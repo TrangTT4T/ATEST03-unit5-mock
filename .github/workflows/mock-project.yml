@@ -3,6 +3,7 @@
 #
 #   quality         lint, format, strict types, unit + plugin tests with a coverage ratchet,
 #                   requirement/finding coverage gate, workflow lint            (no browser)
+#   plan            the persona x target matrix: the standard 8 runs, or what "Run workflow" selected
 #   e2e (matrix)    build the test-runner image, run the scenarios inside it   (one persona/browser each):
 #                   pull requests run @smoke only (fast feedback); main, nightly and manual runs run all
 #   quality-matrix  merge every run's traceability into requirement x run, gate on unexpected failures
@@ -15,6 +16,26 @@ on:
   schedule:
     - cron: "17 3 * * *"  # nightly: the site under test can change without any commit of ours
   workflow_dispatch:
+    inputs:
+      suite:
+        description: Scenarios to run
+        type: choice
+        options: [all, smoke]
+        default: all
+      persona:
+        description: "Persona (all + target all = the standard 8 runs; otherwise every selected persona x every selected target)"
+        type: choice
+        options: [all, standard_user, problem_user, performance_glitch_user, error_user, visual_user]
+        default: all
+      target:
+        description: Browser or emulated device
+        type: choice
+        options: [all, chromium, firefox, webkit, Pixel 7]
+        default: all
+      run_e2e:
+        description: Run the scenarios (off = quality gates only)
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -57,28 +78,51 @@ jobs:
           retention-days: 14
           if-no-files-found: ignore
 
-  e2e:
+  plan:
     needs: quality
+    if: github.event_name != 'workflow_dispatch' || inputs.run_e2e
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - name: Build the persona x target matrix
+        id: plan
+        env:
+          PERSONA: ${{ inputs.persona || 'all' }}
+          TARGET: ${{ inputs.target || 'all' }}
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, os
+          personas = ["standard_user", "problem_user", "performance_glitch_user", "error_user", "visual_user"]
+          targets = {"chromium": ("chromium", ""), "firefox": ("firefox", ""), "webkit": ("webkit", ""), "Pixel 7": ("chromium", "Pixel 7")}
+          standard = [(p, "chromium") for p in personas] + [("standard_user", t) for t in ("firefox", "webkit", "Pixel 7")]
+          persona, target = os.environ["PERSONA"], os.environ["TARGET"]
+          if persona == "all" and target == "all":
+              runs = standard
+          else:
+              runs = [(p, t) for p in (personas if persona == "all" else [persona])
+                             for t in (list(targets) if target == "all" else [target])]
+          include = []
+          for p, t in runs:
+              browser, device = targets[t]
+              include.append({"label": f"{p}-{t.replace(' ', '-')}", "persona": p, "browser": browser, "device": device})
+          print("matrix=" + json.dumps({"include": include}))
+          PY
+
+  e2e:
+    needs: plan
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:
       fail-fast: false  # one persona's result must not hide another's
-      matrix:
-        include:
-          - { label: standard_user-chromium, persona: standard_user, browser: chromium }
-          - { label: problem_user-chromium, persona: problem_user, browser: chromium }
-          - { label: performance_glitch_user-chromium, persona: performance_glitch_user, browser: chromium }
-          - { label: error_user-chromium, persona: error_user, browser: chromium }
-          - { label: visual_user-chromium, persona: visual_user, browser: chromium }
-          - { label: standard_user-firefox, persona: standard_user, browser: firefox }
-          - { label: standard_user-webkit, persona: standard_user, browser: webkit }
-          - { label: standard_user-Pixel-7, persona: standard_user, browser: chromium, device: Pixel 7 }
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     env:
       # Matrix values reach the shell through the environment, never by ${{ }} inside a script.
       PERSONA: ${{ matrix.persona }}
       BROWSER: ${{ matrix.browser }}
       DEVICE: ${{ matrix.device }}
-      SUITE: ${{ github.event_name == 'pull_request' && 'smoke' || 'all' }}
+      SUITE: ${{ inputs.suite || (github.event_name == 'pull_request' && 'smoke' || 'all') }}
     steps:
       - uses: actions/checkout@v7
       - name: Build the test-runner image
@@ -113,7 +157,7 @@ jobs:
 
   quality-matrix:
     needs: e2e
-    if: always()
+    if: ${{ always() && needs.e2e.result != 'skipped' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:

@@ -89,6 +89,22 @@ The CI pipeline is `.github/workflows/mock-project.yml`.
   tests fail if either is missing.
 - Never put load on Swag Labs: it is someone else's system.
 
+## CI and manual runs (GitHub Actions)
+
+`.github/workflows/mock-project.yml`: quality gates, then the scenarios in the container on 8 persona/target runs
+(pull requests: `@smoke` only), then one merged quality matrix. To choose what runs:
+**Actions → mock-project → Run workflow**, then pick
+
+| Option | Values |
+| --- | --- |
+| suite | all, smoke |
+| persona | all, standard_user, problem_user, performance_glitch_user, error_user, visual_user |
+| target | all, chromium, firefox, webkit, Pixel 7 |
+| run_e2e | off = quality gates only |
+
+`persona` all + `target` all gives the standard 8 runs; any other choice runs every selected persona on every
+selected target (at most 5 runs, so Swag Labs never gets load).
+
 ## ATEST03 course repositories
 
 One repository per unit:
