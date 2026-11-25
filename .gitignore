@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+reports/
+test-results/
+.coverage
+coverage.xml
+*.log
+# Local environment files may hold credentials: never commit them (an .env.example may be).
+.env
+.env.*
+!.env.example
