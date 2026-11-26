@@ -112,7 +112,7 @@ One repository per unit:
 | Unit | Days | Topic | Repository |
 | --- | --- | --- | --- |
 | 1 | 1–4 | BDD automation design and framework practices (behave + Selenium) | [ATEST03-unit1](https://github.com/TrangTT4T/ATEST03-unit1) |
-| 2 | 5–8 | Playwright end-to-end automation (pytest + pytest-bdd) | [ATEST03-unit2](https://github.com/TrangTT4T/ATEST03-unit2) |
+| 2 | 5–8 | Playwright end-to-end automation (pytest + Playwright) | [ATEST03-unit2](https://github.com/TrangTT4T/ATEST03-unit2) |
 | 3 | 9–12 | Mobile (Appium) and asynchronous systems | [ATEST03-unit3](https://github.com/TrangTT4T/ATEST03-unit3) |
 | 4 | 13–18 | Containers, AWS cloud execution, performance (JMeter), CI/CD | [ATEST03-unit4](https://github.com/TrangTT4T/ATEST03-unit4) |
 | 5 | 19–22 | Mock project: Swag Labs, end to end, without AWS | **ATEST03-unit5-mock** (this repository) |
